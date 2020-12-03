@@ -1,0 +1,432 @@
+module game_fsm (
+    input clk,  // clock
+    input rst,  // reset
+    input increase_counter,
+    input decrease_timer,
+    input regfile_datain[16], //direct reading of regfile data from read_address_a
+    //input random_number_generated[3],
+    
+    input pA_button0,
+    input pA_button1,
+    input pB_button0,
+    input pB_button1,
+    
+    output alufn[6],
+    output regfile_we,
+    output regfile_RA[4],
+    output regfile_RB[4],
+    output regfile_RC[4],
+    output wdsel[2],
+    output decimal_counter_increase,
+    output decimal_counter_rst,
+    output debug[4],
+    //output sevenseg_0[4],
+    //output sevenseg_1[4],
+    //output sevenseg_2[4],
+    output led_pa[5],
+    output led_pb[5],
+    output sevenseg[8],
+    output sevensel[3],
+    output sevensegout[3][4]
+    
+    
+  ) {
+  
+  alu alu;
+  //const SLOWCLOCK_SIZE = 26; 
+  const TIMER=9;
+  
+  //counter slowClock_game(#SIZE(SLOWCLOCK_SIZE), .clk(clk), .rst(rst)); 
+  //edge_detector slowClockEdge_1(#RISE(1), #FALL(0), .clk(clk));
+  //edge_detector slowClockEdge_2(#RISE(1), #FALL(0), .clk(clk));  
+  
+  
+  pn_gen rng(.clk(clk), .rst(rst));
+  
+  multi_seven_seg disp(.clk(clk), .rst(rst));
+  
+  
+  //sequence_checker player_input(.clk(clk), .rst(rst));;
+  
+  
+  
+  .clk(clk){
+    fsm game_fsm={
+      IDLE,
+      SET_QN_COUNTER,
+      RANDOM_DIGIT1,
+      RANDOM_DIGIT2,
+      CHECK_DIGIT2,
+      DIG1_ADD,
+      DIG1_SUB,
+      DIG1_MUL,
+      LOAD_QUESTION,
+      START_SET_TIMER,
+      DEC_TIMER,
+      CHECK_TIMER,
+      CHECK_PA_ANS,
+      BRANCH_PA_ANS,
+      CHECK_PB_ANS,
+      BRANCH_PB_ANS,
+      UPDATE_PA_SCORE,
+      UPDATE_PB_SCORE,
+      DEC_QN_COUNT,
+      CHECK_QN_COUNT,
+      BRANCH_QN_COUNT,
+      CHECK_DRAW,
+      BRANCH_DRAW,
+      CHECK_WINNER,
+      BRANCH_WINNER,
+      PA_WIN,
+      PB_WIN,
+      WIN_SET_TIMER
+      };
+    
+    dff random_digit_1[4];
+    dff random_digit_2[4];
+    dff pa_score[5];
+    dff pb_score[5];
+    dff timer[4];
+    dff sevenseg_out[3][4];
+    dff question_count[3];
+    
+    
+  }
+  
+  always {
+  
+    //slowClockEdge_1.in = slowClock_game.value[SLOWCLOCK_SIZE-1];  
+    //slowClockEdge_2.in = slowClock_game.value[SLOWCLOCK_SIZE-2];   
+    
+    sevensel = ~disp.sel;
+    sevenseg = disp.seg;      //initialising
+
+    
+    sevenseg_out.d = {4d9, 4d3, 4d11};
+    sevensegout = sevenseg_out.q;
+    disp.values = sevenseg_out.q;
+    
+    rng.next = 1;
+    rng.seed = 1;
+    
+    led_pa = 00000;
+    led_pb = 00000;
+    
+    alu.a = 16b0;
+    alu.b = 16b0;
+    alu.alufn_signal = 000000;
+    
+    question_count.d = 5;
+    
+    // standard setting unless otherwise overwritten by each case 
+    alufn = 0;
+    regfile_we = 0;
+    regfile_RA = 0000;
+    regfile_RB = 0000;
+    regfile_RC = 1111;
+    wdsel = 00;
+    
+    debug = b0000;
+    
+    //sevenseg_0 = 4d0;
+    //sevenseg_1 = 4d0;
+    //sevenseg_2 = 4d0;
+
+    
+    decimal_counter_increase = 0;
+    decimal_counter_rst = 0;
+    
+    if (rst){
+        game_fsm.d = game_fsm.START_SET_TIMER;
+        decimal_counter_rst = 1;
+    }
+    else{
+      
+    case(game_fsm.q){
+    
+      game_fsm.IDLE:
+        //disp.values = {4d5, 4d6, 4d12}; //AAA
+        sevenseg_out.d = {4d5, 4d6, 4d12};
+        disp.values = sevenseg_out.q;
+        if (pA_button0){
+          game_fsm.d = game_fsm.SET_QN_COUNTER;
+        }
+        else if (pA_button1){
+          game_fsm.d = game_fsm.SET_QN_COUNTER;
+        }
+        else if (pB_button0){
+          game_fsm.d = game_fsm.SET_QN_COUNTER;
+        }
+        else if (pB_button1){
+          game_fsm.d = game_fsm.SET_QN_COUNTER;
+        }
+        
+      game_fsm.SET_QN_COUNTER:                        //Set to 5
+        alufn = b000000;
+        regfile_we = 1;
+        regfile_RA = hA;
+        regfile_RB = hC;
+        regfile_RC = h7;
+        game_fsm.d = game_fsm.RANDOM_DIGIT1;
+        
+      game_fsm.RANDOM_DIGIT1:                        //Get random digit 1
+        alufn = b000000;
+        regfile_we = 1;
+        random_digit_1.d = rng.num[3:0];
+        regfile_RA = random_digit_1.q;
+        //sevenseg_0 = random_number_generated;
+        regfile_RB = hA;
+        regfile_RC = h2;
+        
+        game_fsm.d = game_fsm.RANDOM_DIGIT2;
+        
+      game_fsm.RANDOM_DIGIT2:                        //Get random digit 2
+        alufn = b000000;
+        regfile_we = 1;
+        random_digit_2.d = rng.num[3:0];
+        regfile_RA = random_digit_2.q;
+        regfile_RB = hA;
+        regfile_RC = h3;
+        game_fsm.d = game_fsm.CHECK_DIGIT2;
+        
+      game_fsm.CHECK_DIGIT2:
+        regfile_RA = hF;
+        if (random_digit_2.q < 4){
+          game_fsm.d = game_fsm.DIG1_ADD;
+          //sevenseg_1 =  4d10; 
+          //disp.values = {random_digit_2.q, 4d10, random_digit_1.q};
+          sevenseg_out.d = {random_digit_2.q, 4d10, random_digit_1.q};
+            disp.values = sevenseg_out.q;
+            }
+        else if (random_digit_2.q > 6){
+          game_fsm.d = game_fsm.DIG1_MUL;
+          //sevenseg_1 = 4d12;
+          disp.values = {random_digit_2.q, 4d12, random_digit_1.q};
+        
+        }
+        else {
+          game_fsm.d = game_fsm.DIG1_SUB;
+          //sevenseg_1 = 4d11;
+          disp.values = {random_digit_2.q, 4d11, random_digit_1.q};
+        
+        }
+        
+      game_fsm.DIG1_ADD:
+        alufn = b000000;                             //ADD
+        regfile_we = 1; 
+        regfile_RA = h2;
+        regfile_RB = h3;
+        regfile_RC = h8;
+        game_fsm.d = game_fsm.LOAD_QUESTION;
+        
+      game_fsm.DIG1_SUB:
+        alufn = b000001;                             //SUB
+        regfile_we = 1;
+        regfile_RA = h2;
+        regfile_RB = h3;
+        regfile_RC = h8;
+        game_fsm.d = game_fsm.LOAD_QUESTION;
+        
+      game_fsm.DIG1_MUL:
+        alufn = b000010;                             //MUL
+        regfile_we = 1;
+        regfile_RA = h2;
+        regfile_RB = h3;
+        regfile_RC = h8;
+        game_fsm.d = game_fsm.LOAD_QUESTION;
+        
+      game_fsm.LOAD_QUESTION:
+      
+        game_fsm.d = game_fsm.START_SET_TIMER;
+        
+        
+      game_fsm.START_SET_TIMER: 
+        alufn = b000010;                             //MUL
+        regfile_we = 1; 
+        regfile_RA = hB;
+        regfile_RB = hC;
+        regfile_RC = h4;
+        decimal_counter_rst = 0;
+        if (decrease_timer){     
+          game_fsm.d = game_fsm.DEC_TIMER;
+          }
+          else{
+            game_fsm.d = game_fsm.START_SET_TIMER;
+          }
+      
+        
+      game_fsm.DEC_TIMER:
+        alufn = b000001;                             //SUB
+        regfile_we = 1;
+        regfile_RA = h4;
+        regfile_RB = h9;
+        regfile_RC = h4;
+        decimal_counter_increase = 1;
+        game_fsm.d = game_fsm.CHECK_TIMER;
+        
+      game_fsm.CHECK_TIMER:
+        regfile_RA = hF;
+          if(decrease_timer){
+       // if (regfile_datain[3:0] == 0){
+          game_fsm.d = game_fsm.DEC_QN_COUNT;
+      }
+        else{
+          game_fsm.d = game_fsm.CHECK_PA_ANS;
+      }
+      game_fsm.CHECK_PA_ANS:
+        alufn = b110010; //CMPEQ
+        regfile_we = 1;
+        regfile_RA = h5;
+        regfile_RB = h8;
+        regfile_RC = hF;
+        wdsel = 00;
+        game_fsm.d = game_fsm.BRANCH_PA_ANS;
+        
+      game_fsm.BRANCH_PA_ANS:
+        regfile_RA = hF;
+        if (regfile_datain == 1){
+          game_fsm.d = game_fsm.UPDATE_PA_SCORE;
+        }
+        else{
+          wdsel = 10;
+          game_fsm.d = game_fsm.CHECK_QN_COUNT;
+          }
+        
+        game_fsm.CHECK_PB_ANS:
+        alufn = b110010; //CMPEQ
+        regfile_we = 1;
+        regfile_RA = h6;
+        regfile_RB = h8;
+        regfile_RC = hF;
+        wdsel = 00;
+        game_fsm.d = game_fsm.BRANCH_PB_ANS;
+        
+      game_fsm.BRANCH_PB_ANS:
+        regfile_RA = hF;
+        if (regfile_datain == 1){
+          game_fsm.d = game_fsm.UPDATE_PB_SCORE;
+        }
+        else{
+          wdsel = 10;
+          game_fsm.d = game_fsm.CHECK_QN_COUNT;
+          }
+        
+        
+      game_fsm.UPDATE_PA_SCORE:
+        alufn = b000000;
+        regfile_we = 1;
+        regfile_RA = h1;
+        regfile_RB = h9;
+        regfile_RC = h1;
+        wdsel = 00;
+        pa_score.d = pa_score.q + 1;
+        led_pa = pa_score.q;
+        game_fsm.d = game_fsm.CHECK_QN_COUNT;
+        
+      game_fsm.UPDATE_PB_SCORE:
+        alufn = b000000;
+        regfile_we = 1;
+        regfile_RA = h1;
+        regfile_RB = h9;
+        regfile_RC = h1;
+        wdsel = 00;
+        pb_score.d = pb_score.q + 1;
+        led_pb = pb_score.q;
+        game_fsm.d = game_fsm.CHECK_QN_COUNT;
+        
+        
+        
+        
+      game_fsm.DEC_QN_COUNT:
+        alufn =   b000001; //SUB
+        regfile_we = 1;
+        regfile_RA = h7;
+        regfile_RB = h9;
+        regfile_RC = h7;
+        wdsel = 00;
+        question_count.d = question_count.q - 1;
+        game_fsm.d = game_fsm.CHECK_QN_COUNT;
+        
+         
+      game_fsm.CHECK_QN_COUNT:
+        alufn = b110100; //CMPLT
+        regfile_we = 1;
+        regfile_RA = h7;
+        regfile_RB = h9;
+        regfile_RC = hF;
+        wdsel = 00;
+        game_fsm.d = game_fsm.BRANCH_QN_COUNT;
+        
+      game_fsm.BRANCH_QN_COUNT:
+        regfile_RA = hF;
+        if (question_count.q == 0){
+          game_fsm.d = game_fsm.CHECK_DRAW;
+        }
+        else{
+          game_fsm.d = game_fsm.RANDOM_DIGIT1;
+          }
+        
+        
+      game_fsm.CHECK_DRAW:
+        alufn = b110010; //CMPEQ
+        regfile_we = 1;
+        regfile_RA = h0;
+        regfile_RB = h1;
+        regfile_RC = hF; //temp reg 
+        wdsel = 00;
+        game_fsm.d = game_fsm.BRANCH_DRAW;
+        
+      game_fsm.BRANCH_DRAW:
+        regfile_RA = hF;
+        if (regfile_datain == 1){
+          game_fsm.d = game_fsm.RANDOM_DIGIT1;
+        }
+        else{
+          game_fsm.d = game_fsm.CHECK_WINNER;
+          }
+        
+                  
+      
+      game_fsm.CHECK_WINNER:
+        alufn = b110100; //CMPLT
+        regfile_we = 1;
+        regfile_RA = h0;
+        regfile_RB = h1;
+        regfile_RC = hF; //temp reg
+        wdsel = 00;
+        game_fsm.d = game_fsm.BRANCH_WINNER;
+       
+      game_fsm.BRANCH_WINNER: 
+        regfile_RA = hF;       
+        if (regfile_datain ==1){
+          //PA score < PB score, PB wins
+          game_fsm.d = game_fsm.PB_WIN;}
+        else{
+          //PA wins
+          game_fsm.d = game_fsm.PA_WIN;}
+          
+      
+        
+      game_fsm.PA_WIN:
+        //seven seg display A 
+        //sevenseg_0 = 4d10;
+        disp.values = {4d15, 4d15, 4d10};
+        game_fsm.d = game_fsm.WIN_SET_TIMER;
+        
+      game_fsm.PB_WIN:
+        //seven seg display B 
+        //sevenseg_0 = 4d8;
+        disp.values = {4d15, 4d15, 4d8};
+        game_fsm.d = game_fsm.WIN_SET_TIMER;
+        
+        
+      game_fsm.WIN_SET_TIMER:
+        alufn = b000000; 
+        regfile_we = 1;
+        regfile_RA = b1011;
+        regfile_RB = b1010;
+        decimal_counter_rst = 1;
+        decimal_counter_increase = 0;
+        game_fsm.d = game_fsm.START_SET_TIMER;
+        
+    }}}

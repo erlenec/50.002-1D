@@ -1,0 +1,148 @@
+module game_beta (
+    input pA_button0,
+    input pA_button1,
+    input pB_button0,
+    input pB_button1,
+    
+    
+    input clk,  // clock
+    input rst,  // reset
+    
+    //output random_number1[4],
+    //output random_number2[4],
+   // output sign[4],
+    
+    //input data_in;
+    //input ra_address,
+    //input rb_address,
+    
+    //output debug_out[16],
+    output pa_out[5], //pa score
+    output pb_out[5], //pb score
+    output debug_slowclock,
+    output debug_vcclock,
+    
+    
+    output seg[8],
+    output sel[3],
+   
+    output sevenseg[3][4],
+        
+    output decimal_counter_increase,
+    output decimal_counter_rst
+  ) {
+  
+  //temp variables
+  sig inputAlu_a[16];
+  sig inputAlu_b[16];
+  
+  alu game_alu;
+  
+  //multi_seven_seg disp(.clk(clk), .rst(rst));
+  
+  .clk(clk){
+    edge_detector edge_detector_variableCounter (#RISE(1), #FALL(0));
+    edge_detector game_timer_detector(#RISE(1), #FALL(0));
+    
+    .rst(rst){
+      game_fsm game_controlunit;
+      game_regfile players;
+      
+      variable_counter vc;
+      counter slow_timer(#SIZE(1),#DIV(26)); 
+      
+      
+
+    }
+  }
+  always {
+    
+    
+    
+    //edge detectors
+    game_timer_detector.in = slow_timer.value; // 30 second timer detector
+    edge_detector_variableCounter.in = vc.out; // random counter increase signal 
+    
+    //pass timer and counter signals to CU unit 
+    game_controlunit.increase_counter = edge_detector_variableCounter.out;
+    game_controlunit.decrease_timer = game_timer_detector.out;
+    
+    //pass button press signal to CU unit
+    game_controlunit.pA_button0 = pA_button0;
+    game_controlunit.pA_button1 = pA_button1;
+    game_controlunit.pB_button0 = pB_button0;
+    game_controlunit.pB_button1 = pB_button1;
+    
+    //game_controlunit.random_number_generated = vc.out;
+      
+    
+    
+    //output of CU to increase 7segment
+    decimal_counter_increase = game_controlunit.decimal_counter_increase;
+    decimal_counter_rst = game_controlunit.decimal_counter_rst;
+    
+    //Setup REGFILE unit 
+    players.we = game_controlunit.regfile_we;
+    players.write_address = game_controlunit.regfile_RC;
+   
+    players.ra_address = game_controlunit.regfile_RA;
+    players.rb_address = game_controlunit.regfile_RB;
+    
+    //bootstrap reg_b output to CU for convenient branching conditions
+    game_controlunit.regfile_datain = players.ra_data;
+    
+    //sel = ~disp.sel;
+    //seg = disp.seg;
+    
+    case(game_controlunit.regfile_RA){
+      default: //necessary to init
+          inputAlu_a = 0;
+      
+    }
+    
+    case(game_controlunit.regfile_RB){
+      default: //necessary to init
+          inputAlu_b = 0;
+      
+    }
+    
+    
+    //ALU
+    game_alu.a = inputAlu_a;
+    game_alu.b = inputAlu_b;
+    game_alu.alufn_signal = game_controlunit.alufn;
+   
+    
+    //wdsel mux
+    case (game_controlunit.wdsel){
+      b10 : players.data_in = 0; //selected when player gives wrong answer
+      default : //b00
+          players.data_in = game_alu.out;
+    }
+    
+    //for debugging
+  //  debug_out[3:0] = players.all_buttons;
+  //  debug_out[7:4] = players.out;    
+  //  debug_out = game_controlunit.debug;
+    
+    //debug_out = players.out;
+    //pa_out = players.all_scores[4:0];
+    pa_out = game_controlunit.led_pa;
+    pb_out = game_controlunit.led_pb;
+    //pb_out = players.all_scores[9:5];
+    debug_slowclock = slow_timer.value;
+    debug_vcclock = vc.out;
+    
+    seg = game_controlunit.sevenseg;
+    sel = ~game_controlunit.sevensel;
+    
+    //disp.values = {4d0, 4d0, 4d0};
+    sevenseg = game_controlunit.sevensegout;
+    
+    //random_number1 = game_controlunit.sevenseg_0;
+    //random_number2 = game_controlunit.sevenseg_2;
+    //sign = game_controlunit.sevenseg_1;
+    
+ 
+  }
+}
