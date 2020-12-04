@@ -1,0 +1,221 @@
+module au_top (
+    input clk,              // 100MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input usb_rx,           // USB->Serial input
+    output usb_tx,          // USB->Serial output
+    input pA_button0,
+    input pA_button1,
+    input pB_button0,
+    input pB_button1,
+    
+    output io_led [3][8],   // LEDs on IO Shield
+    //output st_sel_counter [4],
+    output st_sel_question [3],
+    //output st_seg_counter[8],
+    output st_seg_question[8],
+    output customled[2][5],
+    //output timerseg[8]
+    //output test_sel[4],
+    output test_seg[8]
+    
+    
+  ) {
+  
+  sig rst;                  // reset signal
+  
+  
+  seven_seg testt_seg;
+  
+  
+  
+  game game(.clk(clk), .rst(rst));
+  
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+    
+    edge_detector edge_dt_btn_pA0 (#RISE(1), #FALL(0));
+    edge_detector edge_dt_btn_pA1 (#RISE(1), #FALL(0));
+    
+    edge_detector edge_dt_btn_pB0 (#RISE(1), #FALL(0));
+    edge_detector edge_dt_btn_pB1 (#RISE(1), #FALL(0));
+
+    button_conditioner btn_cond_pA0;
+    button_conditioner btn_cond_pA1;
+    
+    button_conditioner btn_cond_pB0;
+    button_conditioner btn_cond_pB1;
+    
+    //edge_detector edge_detector(#RISE(1), #FALL(0));
+    
+   // multi_dec_ctr dec_ctr;
+    
+    
+    
+  
+    
+    .rst(rst) {
+      
+      //dff ledsA[16];                                 //record input A 
+      //dff ledsB[16];                                 //record input B 
+      //dff store_alufn[6];                            //record alufn signal
+      //dff ledA[5];
+      //dff ledB[5];
+      
+      
+      counter ctr(#SIZE(1), #DIV(24));
+      
+      //multi_seven_seg seg_ctr;
+      multi_seven_seg seg_question;
+     // multi_seven_seg testt_seg(#DIGITS(4),#DIV(16));
+      game_beta gameMath;
+      
+        decimal_ctr dec_ctr;
+      
+      //sequence_checker player_input;
+      
+    }
+    
+  }
+  
+ 
+  //sig a[16];
+  //sig b[16];
+  //sig alufn[6];
+  //sig alu[16];
+  
+  
+ 
+   
+  //alu alumod;               //creating instance of alu
+  //adder add;
+  
+  
+  
+  
+  always {
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset
+    
+    usb_tx = usb_rx; //loop serial port
+    
+    led = 8h00;             // turn LEDs off
+    
+    
+    io_led = 3x{{8h00}};    // turn LEDs off
+    //io_seg = 8hff;          // turn segments off
+   //io_sel = 4hf;           // select no digits
+    
+    //seg_ctr.values = {4d0,4d0,4d0,4d0}; //initialising values of seven segment display
+    //seg_question.values = {4d0, 4d0, 4d0, 4d0};
+    
+    
+    //edge_detector.in = ctr.value;
+    //seg_ctr.values = dec_ctr.digits;
+    //dec_ctr.inc = edge_detector.out;
+    
+    game.pa_button0 = pA_button0;
+  game.pa_button1 = pA_button1;
+   game.pb_button0 = pB_button0;
+   game.pb_button1 = pB_button1;
+    
+  //1  customled[0] = game.led_PA_score;
+  ///1  customled[1] = game.led_PB_score;
+  //1  
+  //1  timerseg = game.timer_out;
+    
+    
+    //io_sel = ~4h0;
+    //a = 8h0;                //initialising value of a
+    //b = 8h0;                //initialising value of b
+    
+    //customled[0] = b00000;
+    //customled[1] = b00000;
+   
+    //alufn = io_dip[0][7:2];         //assigning dip switches to alufn input
+    //alumod.alufn_signal = alufn;    //connecting alufn to input of module alu
+    //alumod.a = a;                   //connecting a to input of module alu
+    //alumod.b = b;                   //connecting b to input of module alu
+    //alu = alumod.out;               //connecting alu to output of module alu
+    //add.a = ledsA.q;
+    //add.b = ledsB.q;
+    //add.alufn_signal = alufn;
+    //io_led[0] = a[7:0];
+    //io_led[1] = a[15:8];
+    //io_led[0][6] = add.v;
+    
+    
+    customled[0] = 11111;
+    customled[1] = 11111;
+    
+    customled[0] = gameMath.pa_out;
+    customled[1] = gameMath.pb_out;
+    
+    
+    btn_cond_pA0.in = pA_button0;
+    btn_cond_pA1.in = pA_button1;
+    btn_cond_pB0.in = pB_button0;
+    btn_cond_pB1.in = pB_button1;
+    
+    edge_dt_btn_pA0.in = btn_cond_pA0.out;
+    edge_dt_btn_pA1.in = btn_cond_pA1.out;
+    edge_dt_btn_pB0.in = btn_cond_pB0.out;
+   edge_dt_btn_pB1.in = btn_cond_pB1.out;
+    
+    gameMath.pA_button0 = edge_dt_btn_pA0.out;
+    gameMath.pA_button1 = edge_dt_btn_pA1.out;
+    gameMath.pB_button0 = edge_dt_btn_pB0.out;
+    gameMath.pB_button1 = edge_dt_btn_pB1.out;
+    
+    
+    
+   // player_input.buttons[2] = pA_button0;
+   // player_input.buttons[3] = pA_button1;
+   // player_input.buttons[0] = pB_button0;
+   // player_input.buttons[1] = pB_button1;
+    
+    //gameMath.pA_button0 = pA_button0;
+    //gameMath.pA_button1 = pA_button1;
+    //gameMath.pB_button0 = pB_button0;
+    //gameMath.pB_button1 = pB_button1;
+    
+   // gameMath.pA_input = player_input.out_buttonseq[13:7];
+   // gameMath.pB_input = player_input.out_buttonseq[6:0];
+    
+    
+    dec_ctr.inc = gameMath.decimal_counter_increase;
+    testt_seg.char = dec_ctr.value; 
+    test_seg = testt_seg.segs;
+   // test_sel = ~testt_seg.sel; 
+    
+    //show the question on 7segments
+    //seg_question.values[2] = 4d0;
+    //seg_question.values[1] = 4d5;
+   // seg_question.values[0] = 4d12;
+   
+     seg_question.values = game.sevenseg;
+    st_seg_question = seg_question.seg;
+    //st_seg_question = 8b01100110;
+    st_sel_question = ~seg_question.sel;
+    //st_sel_question = 000;
+    
+   // seg_question.values = gameMath.sevenseg;
+    //st_seg_question = seg_question.seg;
+    //st_sel_question = seg_question.sel;
+    
+    
+    //update 7segments counter
+   // dec_ctr.inc = gameMath.decimal_counter_increase;
+  //  dec_ctr.rst = gameMath.decimal_counter_rst;
+  //  testt_seg.char = dec_ctr.value;
+    
+    //st_seg_counter = ~seg_ctr.seg;
+    //st_sel_counter = ~seg_ctr.sel;
+    
+    
+    
+    
+}

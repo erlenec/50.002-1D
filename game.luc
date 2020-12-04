@@ -1,0 +1,293 @@
+module game (
+    input clk,  // clock
+    input rst,  // reset
+    
+    input pa_button0,
+    input pa_button1,
+    input pb_button0,
+    input pb_button1,
+    
+    output led_PA_score[5],
+    output led_PB_score[5],
+    output sevenseg[3][4],
+    output timer_out[3],
+    output out,
+    output seg[8],
+    output sel[3],
+    output timerout[8]
+  ) {
+
+  alu alu;
+  const SLOWCLOCK_SIZE = 26; 
+  const TIMER_1=9;
+ 
+  counter slowClock_game(#SIZE(SLOWCLOCK_SIZE), .clk(clk), .rst(rst)); 
+  edge_detector slowClockEdge_1(#RISE(1), #FALL(0), .clk(clk));
+  //edge_detector slowClockEdge_2(#RISE(1), #FALL(0), .clk(clk));  
+  
+  edge_detector buttondetector_A0[5](#RISE(1), #FALL(0),.clk(clk)); //detect on rising edge only
+  button_conditioner buttoncond_A0[5](.clk(clk));
+  
+  edge_detector buttondetector_A1[5](#RISE(1), #FALL(0),.clk(clk)); //detect on rising edge only
+  button_conditioner buttoncond_A1[5](.clk(clk));
+  
+  edge_detector buttondetector_B0[5](#RISE(1), #FALL(0),.clk(clk)); //detect on rising edge only
+  button_conditioner buttoncond_B0[5](.clk(clk));
+  
+  edge_detector buttondetector_B1[5](#RISE(1), #FALL(0),.clk(clk)); //detect on rising edge only
+  button_conditioner buttoncond_B1[5](.clk(clk));
+  
+  
+ 
+  pn_gen rng(.clk(clk), .rst(rst)); 
+   
+  multi_seven_seg question(.clk(clk), .rst(rst));
+  
+  fsm state(.clk(clk), .rst(rst)) = {
+  IDLE, 
+    QNS1,
+    QNS2,
+    QNS3,
+    QNS4,
+    QNS5,
+    NINE,
+    EIGHT,
+    SEVEN,
+    SIX,
+    FIVE, 
+    FOUR, 
+    THREE,
+    TWO, 
+    ONE,
+    ZERO,
+    NINE1,
+    EIGHT1,
+    SEVEN1,
+    SIX1,
+    FIVE1, 
+    FOUR1, 
+    THREE1,
+    TWO1, 
+    ONE1,
+    ZERO1,
+    
+  LOAD_QNS, 
+  COMPUTEADD,
+  COMPUTESUB,
+  COMPUTEMUL, 
+  CHECK_PA, 
+  CHECK_PB, 
+  CHECK_PA_ANS, 
+  CHECK_PB_ANS,   
+  PA_SCORE, 
+  PB_SCORE,
+  CHECK_QNS_COUNT,
+  CHECK_DRAW,
+  CHECK_WINNER,
+    
+    PA_WIN,
+    END};
+    
+  dff random_digit1[4](.clk(clk), .rst(rst));
+  dff random_digit2[4](.clk(clk), .rst(rst));
+  dff pa_score[5](.clk(clk), .rst(rst));
+  dff pb_score[5](.clk(clk), .rst(rst));
+  dff timer[3](.clk(clk), .rst(rst));
+  dff expected_ans[7](.clk(clk), .rst(rst));
+  dff pa_input[7](.clk(clk), .rst(rst));
+  dff pb_input[7](.clk(clk), .rst(rst));
+  dff sevenseg_out[3][4](.clk(clk), .rst(rst));
+  
+    
+  
+  
+  
+  
+  always {
+    timerout = 8b01101111;
+    out = 0;
+    slowClockEdge_1.in = slowClock_game.value[SLOWCLOCK_SIZE-1];  
+    buttoncond_A0.in = pa_button0;
+    buttoncond_A1.in = pa_button1;
+    buttoncond_B0.in = pb_button0;
+    buttoncond_B1.in = pb_button1;
+    
+    buttondetector_A0.in = buttoncond_A0.out;
+    buttondetector_A1.in = buttoncond_A1.out;
+    buttondetector_B0.in = buttoncond_B0.out;
+    buttondetector_B1.in = buttoncond_B1.out;
+    
+     sel = ~question.sel;
+    seg = question.seg;   
+    
+    rng.next = 1;
+    rng.seed = 1;
+    
+    led_PA_score = 00000;
+    led_PB_score = 00000;
+    
+    alu.a = 16b0;
+    alu.b = 16b0;
+    alu.alufn_signal = 6b0;
+    
+    sevenseg = sevenseg_out.q;
+    question.values = {4d0, 4d0, 4d0};
+    
+    timer_out = timer.q;
+    
+    case(state.q){
+      state.IDLE:
+      sevenseg_out.d = {4d15, 4d15, 4d15};
+        question.values = sevenseg_out.q;
+        //if (buttondetector_A0.out == 1){
+        state.d = state.QNS1;
+        //}
+        
+     
+        
+        
+        
+      state.QNS1:
+        timerout = 8b01101111;
+      sevenseg_out.d = {4d5, 4d10, 4d3}; //5A3
+       
+        question.values = sevenseg_out.q;
+       
+        state.d = state.EIGHT;
+        
+        state.EIGHT:
+      timerout = 8b01111111;
+        state.d = state.SEVEN;
+        
+      
+        
+        state.SEVEN:
+      timerout = 8b00000111;
+        state.d = state.SIX;
+        
+        state.SIX:
+      timerout = 8b01111100;
+        state.d = state.FIVE;
+        
+        state.FIVE:
+       led_PA_score = 00001;
+         led_PA_score = 00001;
+        timerout = 8b01101101;
+        state.d = state.FOUR;
+        
+         state.FOUR:
+      timerout = 8b01100110;
+        state.d = state.THREE;
+        
+         state.THREE:
+      timerout = 8b01001111;
+        state.d = state.TWO;
+        
+         state.TWO:
+      timerout = 8b01011011;
+        state.d = state.ONE;
+        
+      state.ONE:
+        timerout = 8b00000110;
+        state.d = state.ZERO;
+        
+      state.ZERO:
+      timerout = 8b00111111;
+        state.d = state.QNS2;
+        
+        
+        
+      state.QNS2:
+      timerout = 8b01101111;
+      sevenseg_out.d = {4d1, 4d11, 4d0}; //1-0
+          question.values = sevenseg_out.q;
+        
+        
+        state.d = state.EIGHT1;
+        
+        state.EIGHT1:
+      timerout = 8b01111111;
+        state.d = state.SEVEN1;
+        
+      
+        
+        state.SEVEN1:
+      timerout = 8b00000111;
+        state.d = state.SIX1;
+        
+        state.SIX1:
+      timerout = 8b01111100;
+        led_PA_score = 00011;
+        state.d = state.FIVE1;
+        
+        state.FIVE1:
+      
+       led_PA_score = 00001;
+         
+        timerout = 8b01101101;
+        state.d = state.FOUR1;
+        
+         state.FOUR1:
+      led_PB_score = 00001;
+      timerout = 8b01100110;
+        state.d = state.THREE1;
+        
+         state.THREE1:
+      timerout = 8b01001111;
+        state.d = state.TWO1;
+        
+         state.TWO1:
+      timerout = 8b01011011;
+        state.d = state.ONE1;
+        
+      state.ONE1:
+        timerout = 8b00000110;
+        state.d = state.ZERO1;
+        
+      state.ZERO1:
+      timerout = 8b00111111;
+        state.d = state.QNS3;
+        
+        
+      state.QNS3:
+      sevenseg_out.d = {4d7, 4d10, 4d6}; //7A6
+          question.values = sevenseg_out.q;
+        led_PA_score = 00011;
+        led_PB_score = 00001;
+        state.d = state.QNS4;
+        
+      state.QNS4:
+     sevenseg_out.d = {4d3, 4d12, 4d6}; //3X6
+          question.values = sevenseg_out.q;
+        led_PA_score = 00011;
+        led_PB_score = 00011;
+        state.d = state.QNS4;
+      
+      state.QNS5:
+      sevenseg_out.d = {4d2, 4d12, 4d5}; //2X5
+          question.values = sevenseg_out.q;
+        led_PA_score = 00111;
+        led_PB_score = 00011;
+        state.d = state.PA_WIN;
+        
+      state.PA_WIN:
+      sevenseg_out.d = {4d15, 4d15, 4d10};
+          question.values = sevenseg_out.q;
+        state.d = state.END;
+        
+      
+          
+    
+    }
+    }
+    }
+        
+        
+          
+            
+            
+      
+    
+    
+  
+

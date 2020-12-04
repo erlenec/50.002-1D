@@ -1,0 +1,111 @@
+module game_regfile (
+    input clk,  // clock
+    input rst,  // reset
+    input write_address[4], // write address
+    input we, // write enable
+    input data_in[16], // data in
+    input ra_address[4], //address port a 
+    input rb_address[4], //address port b
+    output ra_data[16], //read port a
+    output rb_data[16], //read port b
+    
+    //debug
+    output timer_out [16],
+    output all_scores[32],
+    //output all_buttons[4],
+    output question_count[16]
+
+      ) 
+
+{
+  .clk(clk){
+    .rst(rst){
+      dff pa_score[16];
+      dff pb_score[16];
+      dff ran_num1[16];
+      dff ran_num2[16];
+      dff timer[16];
+      dff pa_input[16];
+      dff pb_input[16];
+      dff question_counter[16];
+      dff expected_answer[16];
+      dff constant_1[1];
+      dff constant_0[1];
+      dff constant_2[2];
+      dff constant_5[3];
+      dff temp_var[16];
+    }
+  }
+
+  always {
+  
+    //write port
+    if (we){
+      case(write_address){
+        b0000 : pa_score.d = data_in;
+        b0001 : pb_score.d = data_in;
+        b0010 : ran_num1.d = data_in;
+        b0011 : ran_num2.d = data_in;
+        b0100 : timer.d = data_in;
+        b0101 : pa_input.d = data_in;
+        b0110 : pb_input.d = data_in;
+        b0111 : question_counter.d = data_in;
+        b1000 : expected_answer.d = data_in;
+        b1001 : constant_1.d = b1;
+        b1010 : constant_0.d = b0;
+        b1011 : constant_2.d = b11;
+        b1100 : constant_5.d = b101;
+        b1111 : temp_var.d = data_in;
+      }
+    }
+    
+      
+    //read port a
+    case(ra_address){
+        b0000 : ra_data = pa_score.q;
+        b0001 : ra_data = pb_score.q;
+        b0010 : ra_data = ran_num1.q;
+        b0011 : ra_data = ran_num2.q;
+        b0100 : ra_data = timer.q;
+        b0101 : ra_data = pa_input.q;
+        b0110 : ra_data = pb_input.q;
+        b0111 : ra_data = question_counter.q;
+        b1000 : ra_data = expected_answer.q;
+        b1001 : ra_data = constant_1.q;
+        b1010 : ra_data = constant_0.q;
+        b1011 : ra_data = constant_2.q;
+        b1100 : ra_data = constant_5.q;
+        b1111 : ra_data = temp_var.q;
+        default : ra_data = 0;
+    }
+    
+    //read port b
+    case(rb_address){
+        b0000 : rb_data = pa_score.q;
+        b0001 : rb_data = pb_score.q;
+        b0010 : rb_data = ran_num1.q;
+        b0011 : rb_data = ran_num2.q;
+        b0100 : rb_data = timer.q;
+        b0101 : rb_data = pa_input.q;
+        b0110 : rb_data = pb_input.q;
+        b0111 : rb_data = question_counter.q;
+        b1000 : rb_data = expected_answer.q;
+        b1001 : rb_data = constant_1.q;
+        b1010 : rb_data = constant_0.q;
+        b1011 : rb_data = constant_2.q;
+        b1100 : rb_data = constant_5.q;
+        b1111 : rb_data = temp_var.q;
+        default : rb_data = 0;
+    }
+      
+    
+    
+    //For debugging
+    all_scores[15:0] = pa_score.q;
+    all_scores[31:16] = pb_score.q;
+    //all_buttons[1:0] = p1_buttonPress.q[1:0];
+    //all_buttons[3:2] = p2_buttonPress.q[1:0];
+    timer_out = timer.q;
+    question_count = question_counter.q;
+  }
+}
